@@ -26,3 +26,6 @@ Performs preprocessing of reads:
 2. UMI extraction
 3. Hard-clipping
 4. Collapse across mates
+5. Combine with R1 singletones
+6. Reverse complement
+7. Rearrange the fastq headers to keep the UMI at the end separated by an underscore.
