@@ -34,14 +34,14 @@ PROJDIR=/nemo/stp/babs/working/bootj/projects/bauerd/nuno.santos/trna_shape
 DESIGN=${PROJDIR}/samplesheet.csv
 # Do not edit
 THREADS=${SLURM_CPUS_PER_TASK}
+RESULTSDIR=${PROJDIR}/01_preprocess_reads_outs
 TRIMDIR=${RESULTSDIR}/01_trimmed
-RESULTSDIR=${PROJDIR}/02_preprocess_reads_outs
-UMIDIR=${RESULTSDIR}/03_umi_extracted
-HARDCLIPDIR=${RESULTSDIR}/04_hard_clipped
-COLLAPSEDIR=${RESULTSDIR}/05_collapsed
-COMBINEDDIR=${RESULTSDIR}/06_combined
-REVCOMPDIR=${RESULTSDIR}/07_revcomp
-ADJHEADDIR=${RESULTSDIR}/08_adjusted_header
+UMIDIR=${RESULTSDIR}/02_umi_extracted
+HARDCLIPDIR=${RESULTSDIR}/03_hard_clipped
+COLLAPSEDIR=${RESULTSDIR}/04_collapsed
+COMBINEDDIR=${RESULTSDIR}/05_combined
+REVCOMPDIR=${RESULTSDIR}/06_revcomp
+ADJHEADDIR=${RESULTSDIR}/07_adjusted_header
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 1)
 R1=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 2)
 R2=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 3)
@@ -107,6 +107,7 @@ echo "----------------------------------------"
 echo Starting hard clipping...
 if [ ! -s "${HARDCLIPDIR}/${SAMPLE}.to_collapse.R1.fq.gz" ]
 then
+    HARDCLIP=$(( ${HARDCLIP} + 1 ))
     source activate fastx_toolkit_0.0.14
     zcat ${UMIDIR}/${SAMPLE}.umi_extracted.R1.fastq.gz | fastx_trimmer \
       -z \
@@ -116,7 +117,7 @@ then
     # Create a symlink to the hard-clipped file
     # This is needed for the collapse step
     ln -s ${HARDCLIPDIR}/${SAMPLE}.umi_extracted.clipped.R1.gz ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R1.fq.gz
-    ln -s ${HARDCLIPDIR}/${SAMPLE}.umi_extracted.R2.fastq.gz ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R2.fq.gz
+    ln -s ${UMIDIR}/${SAMPLE}.umi_extracted.R2.fastq.gz ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R2.fq.gz
 else
   echo ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R1.fq.gz already exists.
 fi
