@@ -29,32 +29,36 @@ HARDCLIP=19  # 27 or 19 depending on the library
 MIN_OVERLAP=18  # Not sure about this?
 
 # Directories
-THREADS=${SLURM_CPUS_PER_TASK}
+# Edit
 PROJDIR=/nemo/stp/babs/working/bootj/projects/bauerd/nuno.santos/trna_shape
 DESIGN=${PROJDIR}/samplesheet.csv
-RESULTSDIR=${PROJDIR}/02_preprocess_reads_outs
+# Do not edit
+THREADS=${SLURM_CPUS_PER_TASK}
 TRIMDIR=${RESULTSDIR}/01_trimmed
-UMIDIR=${RESULTSDIR}/02_umi_extracted
-HARDCLIPDIR=${RESULTSDIR}/03_hard_clipped
-COLLAPSEDIR=${RESULTSDIR}/04_collapsed
-COMBINEDDIR=${RESULTSDIR}/05_combined
-REVCOMPDIR=${RESULTSDIR}/06_revcomp
-ADJHEADDIR=${RESULTSDIR}/07_adjusted_header
-FASTQDIR=${PROJDIR}/data/fastq
+RESULTSDIR=${PROJDIR}/02_preprocess_reads_outs
+UMIDIR=${RESULTSDIR}/03_umi_extracted
+HARDCLIPDIR=${RESULTSDIR}/04_hard_clipped
+COLLAPSEDIR=${RESULTSDIR}/05_collapsed
+COMBINEDDIR=${RESULTSDIR}/06_combined
+REVCOMPDIR=${RESULTSDIR}/07_revcomp
+ADJHEADDIR=${RESULTSDIR}/08_adjusted_header
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 1)
-R1=${FASTQDIR}/$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 2)
-R2=${FASTQDIR}/$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 3)
+R1=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 2)
+R2=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 3)
 
 # Make directories
-mkdir -p ${PROJDIR}
 mkdir -p ${RESULTSDIR}
 mkdir -p ${TRIMDIR}
 mkdir -p ${UMIDIR}
 mkdir -p ${HARDCLIPDIR}
 mkdir -p ${COLLAPSEDIR}
 mkdir -p ${COMBINEDDIR}
+mkdir -p ${REVCOMPDIR}
+mkdir -p ${ADJHEADDIR}
 
 # 3’ adapter trimming using AGATCGGAAGAGC for both R1 and R2
+echo "----------------------------------------"
+echo Starting adapter trimming...
 if [ ! -s "${TRIMDIR}/${SAMPLE}_val_1.fq.gz" ]
 then
   source activate trim-galore_0.6.10
@@ -73,9 +77,12 @@ then
 else
   echo ${TRIMDIR}/${SAMPLE}_val_1.fq.gz already exists.
 fi
+echo Finished adapter trimming...
+echo "----------------------------------------"
 
 # Extract UMI as the first 10bp of R1 and of R2.  
 # Move extracted sequence to headers and hard-clip the sequence.
+echo Starting UMI extraction...
 if [ ! -s "${UMIDIR}/${SAMPLE}.umi_extracted.R1.fastq.gz" ]
 then
   source activate umi_tools_1.1.4
@@ -91,10 +98,13 @@ then
 else
   echo ${UMIDIR}/${SAMPLE}.umi_extracted.R1.fastq.gz already exits.
 fi
+echo Finished UMI extraction...
+echo "----------------------------------------"
 
 # Hard-clip the PCR primer from the sequences downstream of the removed R1 UMI.  
 # The amount of the sequence to clip is library specific.  
 # For library B the upper limit of the expected size is 27bp.
+echo Starting hard clipping...
 if [ ! -s "${HARDCLIPDIR}/${SAMPLE}.to_collapse.R1.fq.gz" ]
 then
     source activate fastx_toolkit_0.0.14
@@ -110,8 +120,11 @@ then
 else
   echo ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R1.fq.gz already exists.
 fi
+echo Finish hard clipping...
+echo "----------------------------------------"
 
 # Collapse overlapping R1 and R2 reads based on a defined minimum overlap.
+echo Starting read collapsing...
 if [ ! -s "${COLLAPSEDIR}/${SAMPLE}.extendedFrags.fastq.gz" ]
 then
   source activate flash_1.2.11
@@ -129,8 +142,11 @@ then
 else
   echo ${COLLAPSEDIR}/${SAMPLE}.extendedFrags.fastq.gz already exists.
 fi
+echo Finished read collapsing...
+echo "----------------------------------------"
 
-# Combine R1-R2 collapsed reads with R1 singletones 
+# Combine R1-R2 collapsed reads with R1 singletones
+echo Starting read combining...
 FQ_COMBINED="${COMBINEDDIR}/${SAMPLE}.combined.fq.gz"
 if [ ! -s ${FQ_COMBINED} ]
 then
@@ -138,8 +154,11 @@ then
 else
   echo ${FQ_COMBINED} already exists.
 fi
+echo Finished read combining...
+echo "----------------------------------------"
 
 # Reverse complement
+echo Starting reverse complementing...
 FQ_COMBINED_REVCOMP="${REVCOMPDIR}/${SAMPLE}.combined.revcomp.fq.gz"
 if [ ! -s "${FQ_COMBINED_REVCOMP}" ]
 then
@@ -151,10 +170,13 @@ then
 else
   echo ${FQ_COMBINED_REVCOMP} already exists.
 fi
+echo Finished reverse complementing...
+echo "----------------------------------------"
 
 # Rearrange the fastq headers to keep the UMI at the end separated by an underscore.  
 # The rest is placed before the UMI, separated from the rest of the read name by a backslash.
 # This is to prevent trimming of the headers resulting in dupicate names from R1 and R2 pairs during subsequent alignment.
+echo Starting header adjustment...
 FQ_FILE=${ADJHEADDIR}/${SAMPLE}.combined.revcomp.adjusted_header.fq.gz
 if [ ! -s ${FQ_FILE} ]
 then
@@ -162,3 +184,10 @@ then
 else
   echo ${FQ_FILE} already exists.
 fi
+echo Finished header adjustment...
+echo "----------------------------------------"
+
+# Final log
+echo "Finished preprocessing reads for ${SAMPLE}."
+echo "All done!"
+echo "----------------------------------------"
