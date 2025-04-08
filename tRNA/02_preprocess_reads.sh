@@ -151,7 +151,7 @@ echo Starting read combining...
 FQ_COMBINED="${COMBINEDDIR}/${SAMPLE}.combined.fq.gz"
 if [ ! -s ${FQ_COMBINED} ]
 then
-  cat ${COLLAPSEDIR}/${SAMPLE}.extendedFrags.fastq.gz ${COLLAPSEDIR}/${SAMPLE}.notCombined_1.fastq.gz > ${FQ_COMBINED}
+  cat ${COLLAPSEDIR}/${SAMPLE}.extendedFrags.fastq.gzip ${COLLAPSEDIR}/${SAMPLE}.notCombined_1.fastq.gzip > ${FQ_COMBINED}
 else
   echo ${FQ_COMBINED} already exists.
 fi
