@@ -9,11 +9,10 @@
 #SBATCH --array=1-27
 
 # This script takes the gathered fastq files and performs library-specific pre-processing:
+# Only on R1
 # Adapter trimming
 # UMI extraction
 # Hard-clipping
-# Collapse across mates
-# Combine with R1 singletones
 # Reverse complement
 # Rearrange the fastq headers to keep the UMI at the end separated by an underscore.
 
@@ -26,7 +25,6 @@ ADAPTER="AGATCGGAAGAGC"  # Adapter
 UMI_R1="NNNNNNNNNN"
 UMI_R2="NNNNNNNNNN"
 HARDCLIP=19  # 27 or 19 depending on the library
-MIN_OVERLAP=18  # Not sure about this?
 
 # Directories
 # Edit
@@ -38,21 +36,16 @@ RESULTSDIR=${PROJDIR}/01_preprocess_reads_outs
 TRIMDIR=${RESULTSDIR}/01_trimmed
 UMIDIR=${RESULTSDIR}/02_umi_extracted
 HARDCLIPDIR=${RESULTSDIR}/03_hard_clipped
-COLLAPSEDIR=${RESULTSDIR}/04_collapsed
-COMBINEDDIR=${RESULTSDIR}/05_combined
-REVCOMPDIR=${RESULTSDIR}/06_revcomp
-ADJHEADDIR=${RESULTSDIR}/07_adjusted_header
+REVCOMPDIR=${RESULTSDIR}/04_revcomp
+ADJHEADDIR=${RESULTSDIR}/05_adjusted_header
 SAMPLE=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 1)
 R1=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 2)
 R2=$(sed -n "${SLURM_ARRAY_TASK_ID}p" ${DESIGN} | cut -d ',' -f 3)
-
 # Make directories
 mkdir -p ${RESULTSDIR}
 mkdir -p ${TRIMDIR}
 mkdir -p ${UMIDIR}
 mkdir -p ${HARDCLIPDIR}
-mkdir -p ${COLLAPSEDIR}
-mkdir -p ${COMBINEDDIR}
 mkdir -p ${REVCOMPDIR}
 mkdir -p ${ADJHEADDIR}
 
@@ -69,7 +62,7 @@ then
     --cores ${THREADS} \
     --output_dir ${TRIMDIR} \
     --basename ${SAMPLE} \
-    --length 30 \
+    --length 0 \
     --fastqc \
     ${R1} \
     ${R2}
@@ -105,7 +98,7 @@ echo "----------------------------------------"
 # The amount of the sequence to clip is library specific.  
 # For library B the upper limit of the expected size is 27bp.
 echo Starting hard clipping...
-if [ ! -s "${HARDCLIPDIR}/${SAMPLE}.to_collapse.R1.fq.gz" ]
+if [ ! -s "${HARDCLIPDIR}/${SAMPLE}.to_revcomp.R1.fq.gz" ]
 then
     HARDCLIP=$(( ${HARDCLIP} + 1 ))
     source activate fastx_toolkit_0.0.14
@@ -116,60 +109,26 @@ then
     conda deactivate
     # Create a symlink to the hard-clipped file
     # This is needed for the collapse step
-    ln -s ${HARDCLIPDIR}/${SAMPLE}.umi_extracted.clipped.R1.gz ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R1.fq.gz
-    ln -s ${UMIDIR}/${SAMPLE}.umi_extracted.R2.fastq.gz ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R2.fq.gz
+    ln -s ${HARDCLIPDIR}/${SAMPLE}.umi_extracted.clipped.R1.gz ${HARDCLIPDIR}/${SAMPLE}.to_revcomp.R1.fq.gz
+    ln -s ${UMIDIR}/${SAMPLE}.umi_extracted.R2.fastq.gz ${HARDCLIPDIR}/${SAMPLE}.to_revcomp.R2.fq.gz
 else
-  echo ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R1.fq.gz already exists.
+  echo ${HARDCLIPDIR}/${SAMPLE}.to_revcomp.R1.fq.gz already exists.
 fi
 echo Finish hard clipping...
 echo "----------------------------------------"
 
-# Collapse overlapping R1 and R2 reads based on a defined minimum overlap.
-echo Starting read collapsing...
-if [ ! -s "${COLLAPSEDIR}/${SAMPLE}.extendedFrags.fastq.gz" ]
-then
-  source activate flash_1.2.11
-    flash \
-      -m 18 \
-      -x 0.25 \
-      -t ${THREADS} \
-      --allow-outies \
-      -z --compress-prog=gzip \
-      -o ${SAMPLE} \
-      -d ${COLLAPSEDIR} \
-      ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R1.fq.gz \
-      ${HARDCLIPDIR}/${SAMPLE}.to_collapse.R2.fq.gz
-  conda deactivate
-else
-  echo ${COLLAPSEDIR}/${SAMPLE}.extendedFrags.fastq.gz already exists.
-fi
-echo Finished read collapsing...
-echo "----------------------------------------"
-
-# Combine R1-R2 collapsed reads with R1 singletones
-echo Starting read combining...
-FQ_COMBINED="${COMBINEDDIR}/${SAMPLE}.combined.fq.gz"
-if [ ! -s ${FQ_COMBINED} ]
-then
-  cat ${COLLAPSEDIR}/${SAMPLE}.extendedFrags.fastq.gzip ${COLLAPSEDIR}/${SAMPLE}.notCombined_1.fastq.gzip > ${FQ_COMBINED}
-else
-  echo ${FQ_COMBINED} already exists.
-fi
-echo Finished read combining...
-echo "----------------------------------------"
-
 # Reverse complement
 echo Starting reverse complementing...
-FQ_COMBINED_REVCOMP="${REVCOMPDIR}/${SAMPLE}.combined.revcomp.fq.gz"
-if [ ! -s "${FQ_COMBINED_REVCOMP}" ]
+FQ_REVCOMP="${REVCOMPDIR}/${SAMPLE}.revcomp.fq.gz"
+if [ ! -s "${FQ_REVCOMP}" ]
 then
   source activate fastx_toolkit_0.0.14
-  zcat ${FQ_COMBINED} | fastx_reverse_complement \
+  zcat ${HARDCLIPDIR}/${SAMPLE}.to_revcomp.R1.fq.gz | fastx_reverse_complement \
     -z \
-    -o ${FQ_COMBINED_REVCOMP}
+    -o ${FQ_REVCOMP}
   conda deactivate
 else
-  echo ${FQ_COMBINED_REVCOMP} already exists.
+  echo ${FQ_REVCOMP} already exists.
 fi
 echo Finished reverse complementing...
 echo "----------------------------------------"
@@ -181,7 +140,7 @@ echo Starting header adjustment...
 FQ_FILE=${ADJHEADDIR}/${SAMPLE}.combined.revcomp.adjusted_header.fq.gz
 if [ ! -s ${FQ_FILE} ]
 then
-  zcat ${FQ_COMBINED_REVCOMP} | sed --regexp-extended 's/(^@\S+)_(\S+) ((.):\S+$)/\1\\\3_\2/' | gzip > ${FQ_FILE}
+  zcat ${FQ_REVCOMP} | sed --regexp-extended 's/(^@\S+)_(\S+) ((.):\S+$)/\1\\\3_\2/' | gzip > ${FQ_FILE}
 else
   echo ${FQ_FILE} already exists.
 fi
