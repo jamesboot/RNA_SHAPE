@@ -15,7 +15,7 @@ ml SAMtools/1.18-GCC-12.3.0
 # Directories
 PROJDIR=/nemo/stp/babs/working/bootj/projects/bauerd/nuno.santos/trna_shape
 PREPROCESSDIR=${PROJDIR}/01_preprocess_reads_outs
-FASTQDIR=${PREPROCESSDIR}/07_adjusted_header
+FASTQDIR=${PREPROCESSDIR}/05_adjusted_header
 RESULTSDIR=${PROJDIR}/02_bowtie2_outs
 INDEX=${PROJDIR}/02_bowtie2_index/tRNA_index
 
@@ -25,7 +25,7 @@ mkdir -p ${RESULTSDIR}
 # Bowtie2 loop
 for i in ${FASTQDIR}/*.fq.gz
 do
-        SAMPLE=$(basename $i | cut -d '_' -f 1)
+        SAMPLE=$(basename $i | cut -d '.' -f 1)
         echo "--------------------------------"
         echo "Processing sample: ${SAMPLE}"
         bowtie2 -x ${INDEX} \
@@ -39,7 +39,7 @@ done
 # Convert SAM to BAM
 for i in ${RESULTSDIR}/*.sam
 do
-        SAMPLE=$(basename $i | cut -d '_' -f 1)
+        SAMPLE=$(basename $i | cut -d '.' -f 1)
         echo "--------------------------------"
         echo "Converting SAM to BAM for sample: ${SAMPLE}"
         samtools view -bS $i > ${RESULTSDIR}/${SAMPLE}.bam
@@ -48,7 +48,7 @@ done
 # Sort BAM files
 for i in ${RESULTSDIR}/*.bam
 do
-        SAMPLE=$(basename $i | cut -d '_' -f 1)
+        SAMPLE=$(basename $i | cut -d '.' -f 1)
         echo "--------------------------------"
         echo "Sorting BAM file for sample: ${SAMPLE}"
         samtools sort $i -o ${RESULTSDIR}/${SAMPLE}_sorted.bam
@@ -58,7 +58,7 @@ done
 # Index BAM files
 for i in ${RESULTSDIR}/*_sorted.bam
 do
-        SAMPLE=$(basename $i | cut -d '_' -f 1)
+        SAMPLE=$(basename $i | cut -d '.' -f 1)
         echo "--------------------------------"
         echo "Indexing BAM file for sample: ${SAMPLE}"
         samtools index $i
@@ -68,7 +68,7 @@ done
 # Gather alignment statistics
 for i in ${RESULTSDIR}/*_sorted.bam
 do
-        SAMPLE=$(basename $i | cut -d '_' -f 1)
+        SAMPLE=$(basename $i | cut -d '.' -f 1)
         echo "--------------------------------"
         echo "Gathering alignment statistics for sample: ${SAMPLE}"
         samtools flagstat $i > ${RESULTSDIR}/${SAMPLE}_flagstat.txt
