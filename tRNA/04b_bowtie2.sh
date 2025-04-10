@@ -11,6 +11,7 @@
 ml purge
 ml Bowtie2/2.5.1-GCC-12.3.0
 ml SAMtools/1.18-GCC-12.3.0
+ml MultiQC/1.25.1
 
 # Directories
 PROJDIR=/nemo/stp/babs/working/bootj/projects/bauerd/nuno.santos/trna_shape
@@ -75,3 +76,11 @@ do
         samtools idxstats $i > ${RESULTSDIR}/${SAMPLE}_idxstats.txt
         echo "--------------------------------"
 done
+
+# Run multiqc on the output folder
+echo "--------------------------------"
+echo "Running MultiQC on the results directory"
+multiqc ${RESULTSDIR} --outdir ${RESULTSDIR} --filename multiqc_report.html
+echo "--------------------------------"
+
+# End of script
