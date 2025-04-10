@@ -15,8 +15,8 @@ ml MultiQC/1.25.1
 # Define directories
 PROJDIR=/nemo/stp/babs/working/bootj/projects/bauerd/nuno.santos/trna_shape
 RESULTSDIR=${PROJDIR}/01_preprocess_reads_outs
-INPUTDIR=${RESULTSDIR}/07_adjusted_header
-FASTQCDIR=${RESULTSDIR}/08_fastqc
+INPUTDIR=${RESULTSDIR}/05_adjusted_header
+FASTQCDIR=${RESULTSDIR}/06_fastqc
 
 # Make directories
 mkdir -p ${FASTQCDIR}
