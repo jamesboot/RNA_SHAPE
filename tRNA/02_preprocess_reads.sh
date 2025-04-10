@@ -62,7 +62,7 @@ then
     --cores ${THREADS} \
     --output_dir ${TRIMDIR} \
     --basename ${SAMPLE} \
-    --length 0 \
+    --length 15 \
     --fastqc \
     ${R1} \
     ${R2}
